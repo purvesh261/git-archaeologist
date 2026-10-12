@@ -1,5 +1,8 @@
 import type { Queue } from 'bullmq';
-import type { GithubClient } from '../../github/github.client.js';
+import {
+  GithubGraphqlError,
+  type GithubClient,
+} from '../../github/github.client.js';
 import type { ReposService } from '../../repos/repos.service.js';
 import type {
   BackfillStore,
@@ -143,9 +146,25 @@ describe('IssuesBackfillJob', () => {
 
     const [first, second] = t.graphql.mock.calls.map((c) => c[1]);
     expect(first).toMatchObject({ first: 50, after: 'p1' });
-    expect(second).toMatchObject({ first: 25, after: 'p1' });
+    expect(second).toMatchObject({ first: 25, inner: 25, after: 'p1' });
     // stays reduced for the rest of the run
     expect(t.graphql.mock.calls.at(-1)?.[1].first).toBe(25);
+  });
+
+  it('treats a GraphQL timeout error inside a 200 response as a timeout', async () => {
+    const t = setup();
+    t.graphql.mockRejectedValueOnce(
+      new GithubGraphqlError([
+        {
+          message:
+            'Something went wrong while executing your query. This may be the result of a timeout, or it could be a GitHub bug.',
+        },
+      ]),
+    );
+
+    await t.job.run({ repoId: REPO_ID });
+
+    expect(t.graphql.mock.calls[1][1]).toMatchObject({ first: 25, after: null });
   });
 
   it('rethrows when page size would drop below the floor', async () => {
@@ -219,12 +238,12 @@ describe('IssuesBackfillJob', () => {
       {
         name: 'issue-thread',
         data: { repoId: REPO_ID, issueNumber: 3 },
-        opts: { jobId: `issue-thread-${REPO_ID}-3` },
+        opts: { jobId: `issue-thread-${REPO_ID}-3`, removeOnComplete: true },
       },
       {
         name: 'issue-thread',
         data: { repoId: REPO_ID, issueNumber: 1 },
-        opts: { jobId: `issue-thread-${REPO_ID}-1` },
+        opts: { jobId: `issue-thread-${REPO_ID}-1`, removeOnComplete: true },
       },
     ]);
   });

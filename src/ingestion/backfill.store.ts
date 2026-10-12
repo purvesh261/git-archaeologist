@@ -78,7 +78,13 @@ async function upsertItems(
       repoId,
       items.map((i) => i.kind),
       items.map((i) => i.externalId),
-      items.map((i) => JSON.stringify(i.payload)),
+      items.map((i) => JSON.stringify(i.payload, jsonbSafe)),
     ],
   );
 }
+
+// jsonb rejects \u0000 and lone surrogates, which GitHub text can contain; one
+// such string would fail the page on every retry. U+FFFD keeps the rest as fetched.
+const jsonbSafe = (_key: string, v: unknown) =>
+  // With the u flag, the surrogate range matches only unpaired halves.
+  typeof v === 'string' ? v.replace(/[\0\uD800-\uDFFF]/gu, '\ufffd') : v;

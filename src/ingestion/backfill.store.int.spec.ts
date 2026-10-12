@@ -119,6 +119,15 @@ describe.skipIf(!url)('BackfillStore (integration)', () => {
     expect(await rows()).toHaveLength(1); // reset restarts paging; it keeps fetched data
   });
 
+  it('replaces text Postgres jsonb rejects instead of failing the page', async () => {
+    // \u0000 and lone surrogates are valid JS strings but invalid jsonb.
+    await store.savePage(repoId, JOB, [issue(1, 'a\u0000b\ud800c')], {
+      cursor: 'c1',
+      done: false,
+    });
+    expect((await rows())[0].payload.title).toBe('a\ufffdb\ufffdc');
+  });
+
   it('saveItems upserts without touching the cursor', async () => {
     await store.saveItems(repoId, [
       { kind: 'issue_thread', externalId: '7', payload: { comments: [] } },

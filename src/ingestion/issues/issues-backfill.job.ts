@@ -1,7 +1,10 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import type { Job, Queue } from 'bullmq';
-import { GithubClient } from '../../github/github.client.js';
+import {
+  GithubClient,
+  GithubGraphqlError,
+} from '../../github/github.client.js';
 import {
   INGESTION_QUEUE,
   issueThreadJobId,
@@ -18,9 +21,12 @@ const DEFAULT_PAGE_SIZE = 50;
 const INNER_PAGE_SIZE = 50;
 const MIN_PAGE_SIZE = 5;
 
-// GitHub kills GraphQL requests over 10 s with a 502/504; a smaller page usually fits.
+// GitHub kills GraphQL requests over 10 s with a 502/504, or a 200 whose error
+// message mentions a timeout; a smaller page usually fits.
 const isTimeout = (err: unknown) =>
-  [502, 504].includes((err as { status?: unknown }).status as number);
+  [502, 504].includes((err as { status?: unknown }).status as number) ||
+  (err instanceof GithubGraphqlError &&
+    err.errors.some((e) => /timeout/i.test(e.message)));
 
 /**
  * Pages through every issue of a repo, newest first. Each page's rows and the
@@ -53,6 +59,7 @@ export class IssuesBackfillJob {
 
     let after = state?.cursor ?? null;
     let first = pageSize;
+    let inner = INNER_PAGE_SIZE;
     const startedAt = Date.now();
 
     for (;;) {
@@ -63,12 +70,16 @@ export class IssuesBackfillJob {
           name: repo.name,
           first,
           after,
-          inner: INNER_PAGE_SIZE,
+          inner,
         });
       } catch (err) {
         if (!isTimeout(err) || first <= MIN_PAGE_SIZE) throw err;
+        // Shrink the nested pages too: one issue with 50 huge comments can time out alone.
         first = Math.max(MIN_PAGE_SIZE, Math.floor(first / 2));
-        this.logger.warn(`${slug}: GitHub timed out; retrying with page size ${first}`);
+        inner = Math.max(MIN_PAGE_SIZE, Math.floor(inner / 2));
+        this.logger.warn(
+          `${slug}: GitHub timed out; retrying with page size ${first}/${inner}`,
+        );
         continue;
       }
 
@@ -84,7 +95,11 @@ export class IssuesBackfillJob {
           page.overflow.map((issueNumber) => ({
             name: JobName.IssueThread,
             data: { repoId, issueNumber } satisfies IssueThreadJobData,
-            opts: { jobId: issueThreadJobId(repoId, issueNumber) },
+            // Dedupe only while queued; a kept completed job would block --restart's refetch.
+            opts: {
+              jobId: issueThreadJobId(repoId, issueNumber),
+              removeOnComplete: true,
+            },
           })),
         );
       }
