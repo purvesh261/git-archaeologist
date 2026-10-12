@@ -1,0 +1,115 @@
+{
+  "rateLimit": { "cost": 2, "remaining": 4990, "resetAt": "2026-10-12T18:00:00Z" },
+  "repository": {
+    "issues": {
+      "totalCount": 120,
+      "pageInfo": { "hasNextPage": true, "endCursor": "Y3Vyc29yOjM=" },
+      "nodes": [
+        {
+          "number": 103,
+          "title": "Short thread",
+          "body": "body",
+          "state": "OPEN",
+          "stateReason": null,
+          "createdAt": "2026-10-01T00:00:00Z",
+          "updatedAt": "2026-10-02T00:00:00Z",
+          "closedAt": null,
+          "url": "https://github.com/acme/widgets/issues/103",
+          "author": { "__typename": "User", "login": "alice" },
+          "authorAssociation": "MEMBER",
+          "labels": { "nodes": [{ "name": "bug" }] },
+          "comments": {
+            "totalCount": 1,
+            "pageInfo": { "hasNextPage": false, "endCursor": "c1" },
+            "nodes": [
+              {
+                "id": "IC_1",
+                "author": { "__typename": "Bot", "login": "ci-bot" },
+                "authorAssociation": "NONE",
+                "body": "triaged",
+                "createdAt": "2026-10-01T01:00:00Z",
+                "url": "https://github.com/acme/widgets/issues/103#issuecomment-1"
+              }
+            ]
+          },
+          "timelineItems": {
+            "totalCount": 0,
+            "pageInfo": { "hasNextPage": false, "endCursor": null },
+            "nodes": []
+          }
+        },
+        {
+          "number": 102,
+          "title": "Long discussion",
+          "body": "body",
+          "state": "CLOSED",
+          "stateReason": "COMPLETED",
+          "createdAt": "2026-09-01T00:00:00Z",
+          "updatedAt": "2026-09-20T00:00:00Z",
+          "closedAt": "2026-09-20T00:00:00Z",
+          "url": "https://github.com/acme/widgets/issues/102",
+          "author": null,
+          "authorAssociation": "NONE",
+          "labels": { "nodes": [] },
+          "comments": {
+            "totalCount": 80,
+            "pageInfo": { "hasNextPage": true, "endCursor": "c50" },
+            "nodes": [
+              {
+                "id": "IC_2",
+                "author": null,
+                "authorAssociation": "NONE",
+                "body": "from a deleted account",
+                "createdAt": "2026-09-02T00:00:00Z",
+                "url": "https://github.com/acme/widgets/issues/102#issuecomment-2"
+              }
+            ]
+          },
+          "timelineItems": {
+            "totalCount": 1,
+            "pageInfo": { "hasNextPage": false, "endCursor": "t1" },
+            "nodes": [
+              {
+                "__typename": "ClosedEvent",
+                "createdAt": "2026-09-20T00:00:00Z",
+                "stateReason": "COMPLETED",
+                "closer": { "__typename": "PullRequest", "number": 110, "url": "https://github.com/acme/widgets/pull/110" }
+              }
+            ]
+          }
+        },
+        {
+          "number": 101,
+          "title": "Many references",
+          "body": "body",
+          "state": "OPEN",
+          "stateReason": null,
+          "createdAt": "2026-08-01T00:00:00Z",
+          "updatedAt": "2026-08-02T00:00:00Z",
+          "closedAt": null,
+          "url": "https://github.com/acme/widgets/issues/101",
+          "author": { "__typename": "User", "login": "bob" },
+          "authorAssociation": "CONTRIBUTOR",
+          "labels": { "nodes": [] },
+          "comments": {
+            "totalCount": 0,
+            "pageInfo": { "hasNextPage": false, "endCursor": null },
+            "nodes": []
+          },
+          "timelineItems": {
+            "totalCount": 70,
+            "pageInfo": { "hasNextPage": true, "endCursor": "t50" },
+            "nodes": [
+              {
+                "__typename": "ReferencedEvent",
+                "createdAt": "2026-08-03T00:00:00Z",
+                "isCrossRepository": false,
+                "commit": { "oid": "abc123", "url": "https://github.com/acme/widgets/commit/abc123" }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
