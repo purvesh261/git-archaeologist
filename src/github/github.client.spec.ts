@@ -5,7 +5,7 @@ import {
 } from './github.client.js';
 
 function clientReturning(data: unknown) {
-  const request = vi.fn().mockResolvedValue({ data, headers: {} });
+  const request = vi.fn().mockResolvedValue({ status: 200, data, headers: {} });
   const client = new GithubClient({ request } as unknown as GithubOctokit);
   return { client, request };
 }
@@ -41,9 +41,16 @@ describe('GithubClient.graphql', () => {
   });
 
   it('throws when the response has no data and no errors', async () => {
-    const { client } = clientReturning({});
+    const { client } = clientReturning({ message: 'Server Error' });
     await expect(client.graphql('query { x }')).rejects.toThrow(
-      /neither data nor errors/,
+      /neither data nor errors \(HTTP 200\): {"message":"Server Error"}/,
     );
+  });
+
+  it('includes a non-JSON body, truncated, in the error', async () => {
+    const { client } = clientReturning(`<html>${'x'.repeat(1000)}</html>`);
+    const err = (await client.graphql('query { x }').catch((e: unknown) => e)) as Error;
+    expect(err.message).toMatch(/\(HTTP 200\): "<html>x+/);
+    expect(err.message.length).toBeLessThan(400);
   });
 });

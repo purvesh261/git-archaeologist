@@ -86,8 +86,12 @@ export class GithubClient {
     if (body.errors?.length) {
       throw new GithubGraphqlError(body.errors);
     }
-    if (body.data === undefined) {
-      throw new Error('GitHub GraphQL response had neither data nor errors');
+    if (body?.data === undefined) {
+      // Keep the evidence: without status and body this error is undiagnosable.
+      const snippet = (JSON.stringify(res.data) ?? String(res.data)).slice(0, 300);
+      throw new Error(
+        `GitHub GraphQL response had neither data nor errors (HTTP ${res.status}): ${snippet}`,
+      );
     }
     return body.data;
   }
