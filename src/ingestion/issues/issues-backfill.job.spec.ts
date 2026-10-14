@@ -167,6 +167,33 @@ describe('IssuesBackfillJob', () => {
     expect(t.graphql.mock.calls[1][1]).toMatchObject({ first: 25, after: null });
   });
 
+  it('treats RESOURCE_LIMITS_EXCEEDED as a page that is too heavy', async () => {
+    const t = setup();
+    t.graphql.mockRejectedValueOnce(
+      new GithubGraphqlError([
+        {
+          type: 'RESOURCE_LIMITS_EXCEEDED',
+          message: 'Resource limits for this query exceeded.',
+          path: ['repository', 'issues', 'nodes', 0, 'comments', 'nodes', 0],
+        },
+      ]),
+    );
+
+    await t.job.run({ repoId: REPO_ID });
+
+    expect(t.graphql.mock.calls[1][1]).toMatchObject({ first: 25, inner: 25, after: null });
+  });
+
+  it('does not shrink on other GraphQL errors', async () => {
+    const t = setup();
+    t.graphql.mockRejectedValue(
+      new GithubGraphqlError([{ type: 'NOT_FOUND', message: 'Could not resolve' }]),
+    );
+
+    await expect(t.job.run({ repoId: REPO_ID })).rejects.toThrow('NOT_FOUND');
+    expect(t.graphql).toHaveBeenCalledTimes(1);
+  });
+
   it('rethrows when page size would drop below the floor', async () => {
     const t = setup();
     t.graphql.mockRejectedValue(httpError(504));

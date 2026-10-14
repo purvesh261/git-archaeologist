@@ -21,12 +21,14 @@ const DEFAULT_PAGE_SIZE = 50;
 const INNER_PAGE_SIZE = 50;
 const MIN_PAGE_SIZE = 5;
 
-// GitHub kills GraphQL requests over 10 s with a 502/504, or a 200 whose error
-// message mentions a timeout; a smaller page usually fits.
-const isTimeout = (err: unknown) =>
+// A page too heavy for GitHub fails as a 502/504, a 200 whose error mentions a
+// timeout, or RESOURCE_LIMITS_EXCEEDED with null nested nodes; a smaller page fits.
+const isTooHeavy = (err: unknown) =>
   [502, 504].includes((err as { status?: unknown }).status as number) ||
   (err instanceof GithubGraphqlError &&
-    err.errors.some((e) => /timeout/i.test(e.message)));
+    err.errors.some(
+      (e) => e.type === 'RESOURCE_LIMITS_EXCEEDED' || /timeout/i.test(e.message),
+    ));
 
 /**
  * Pages through every issue of a repo, newest first. Each page's rows and the
@@ -73,12 +75,12 @@ export class IssuesBackfillJob {
           inner,
         });
       } catch (err) {
-        if (!isTimeout(err) || first <= MIN_PAGE_SIZE) throw err;
+        if (!isTooHeavy(err) || first <= MIN_PAGE_SIZE) throw err;
         // Shrink the nested pages too: one issue with 50 huge comments can time out alone.
         first = Math.max(MIN_PAGE_SIZE, Math.floor(first / 2));
         inner = Math.max(MIN_PAGE_SIZE, Math.floor(inner / 2));
         this.logger.warn(
-          `${slug}: GitHub timed out; retrying with page size ${first}/${inner}`,
+          `${slug}: page too heavy for GitHub; retrying with page size ${first}/${inner}`,
         );
         continue;
       }
