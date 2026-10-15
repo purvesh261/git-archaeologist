@@ -1,14 +1,7 @@
-import type { RawItem } from '../backfill.store.js';
-import type { IssuesPageResponse, RateLimit } from './issues.queries.js';
+import type { BackfillPage } from '../paged-backfill.runner.js';
+import type { IssuesPageResponse } from './issues.queries.js';
 
-export interface IssuesPage {
-  items: RawItem[];
-  /** Issue numbers whose comments or timeline did not fit in the page. */
-  overflow: number[];
-  next: { cursor: string | null; hasNext: boolean };
-  totalCount: number;
-  rateLimit: RateLimit;
-}
+export type IssuesPage = BackfillPage;
 
 export function parseIssuesPage(data: IssuesPageResponse): IssuesPage {
   if (!data.repository) {

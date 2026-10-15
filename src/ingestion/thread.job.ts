@@ -1,20 +1,26 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { GithubClient } from '../../github/github.client.js';
-import type { IssueThreadJobData } from '../../queue/queues.js';
-import { ReposService } from '../../repos/repos.service.js';
-import { BackfillStore } from '../backfill.store.js';
+import { GithubClient } from '../github/github.client.js';
+import type { ThreadKind } from '../queue/queues.js';
+import { ReposService } from '../repos/repos.service.js';
+import { BackfillStore } from './backfill.store.js';
 import {
   ISSUE_THREAD_QUERY,
   type IssueThreadResponse,
-} from './issues.queries.js';
+} from './issues/issues.queries.js';
+
+export interface ThreadJobData {
+  repoId: number;
+  kind: ThreadKind;
+  number: number;
+}
 
 /**
- * Fetches the full comments and timeline of one issue whose thread overflowed
- * the backfill page. Always starts from the beginning, so re-runs are idempotent.
+ * Fetches the full thread of one issue or PR that overflowed its backfill page.
+ * Always starts from the beginning, so re-runs are idempotent.
  */
 @Injectable()
-export class IssueThreadJob {
-  private readonly logger = new Logger(IssueThreadJob.name);
+export class ThreadJob {
+  private readonly logger = new Logger(ThreadJob.name);
 
   constructor(
     private readonly github: GithubClient,
@@ -24,8 +30,10 @@ export class IssueThreadJob {
 
   async run({
     repoId,
-    issueNumber,
-  }: IssueThreadJobData): Promise<{ comments: number; timelineItems: number }> {
+    kind,
+    number: issueNumber,
+  }: ThreadJobData): Promise<{ comments: number; timelineItems: number }> {
+    if (kind === 'pr') throw new Error('pr threads: not implemented');
     const repo = await this.repos.get(repoId);
     const comments: unknown[] = [];
     const timelineItems: unknown[] = [];
