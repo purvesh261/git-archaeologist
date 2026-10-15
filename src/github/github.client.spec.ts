@@ -47,6 +47,13 @@ describe('GithubClient.graphql', () => {
     );
   });
 
+  it('reports an empty body with its status instead of crashing', async () => {
+    const { client } = clientReturning(undefined);
+    await expect(client.graphql('query { x }')).rejects.toThrow(
+      /neither data nor errors \(HTTP 200\): undefined/,
+    );
+  });
+
   it('includes a non-JSON body, truncated, in the error', async () => {
     const { client } = clientReturning(`<html>${'x'.repeat(1000)}</html>`);
     const err = (await client.graphql('query { x }').catch((e: unknown) => e)) as Error;

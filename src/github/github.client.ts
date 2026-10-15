@@ -83,7 +83,7 @@ export class GithubClient {
     const body = res.data as { data?: T; errors?: GraphqlErrorItem[] };
     // GraphQL reports most failures as HTTP 200 with an `errors` array.
     // Rate-limit errors never reach here; the throttling plugin handles them.
-    if (body.errors?.length) {
+    if (body?.errors?.length) {
       throw new GithubGraphqlError(body.errors);
     }
     if (body?.data === undefined) {
