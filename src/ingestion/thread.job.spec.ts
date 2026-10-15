@@ -2,6 +2,7 @@ import type { GithubClient } from '../github/github.client.js';
 import type { ReposService } from '../repos/repos.service.js';
 import type { BackfillStore } from './backfill.store.js';
 import type { IssueThreadResponse } from './issues/issues.queries.js';
+import type { PrThreadResponse } from './prs/prs.queries.js';
 import { ThreadJob } from './thread.job.js';
 
 const conn = (nodes: string[], endCursor: string, hasNextPage: boolean) => ({
@@ -111,5 +112,42 @@ describe('ThreadJob', () => {
       /#42/,
     );
     expect(t.store.saveItems).not.toHaveBeenCalled();
+  });
+});
+
+describe('ThreadJob for PRs', () => {
+  it("pages a PR thread's comments and saves kind 'pr_thread'", async () => {
+    const pages = [conn(['c1', 'c2'], 'C1', true), conn(['c3'], 'C2', false)];
+    const graphql = vi.fn(
+      async (
+        _q: string,
+        v: { commentsAfter: string | null },
+      ): Promise<PrThreadResponse> => ({
+        repository: { pullRequest: { comments: pages[v.commentsAfter ? 1 : 0] } },
+      }),
+    );
+    const store = { saveItems: vi.fn(async () => {}) };
+    const job = new ThreadJob(
+      { graphql } as unknown as GithubClient,
+      { get: async () => ({ id: 7, owner: 'acme', name: 'widgets' }) } as unknown as ReposService,
+      store as unknown as BackfillStore,
+    );
+
+    await expect(job.run({ repoId: 7, kind: 'pr', number: 9 })).resolves.toEqual({
+      comments: 3,
+      timelineItems: 0,
+    });
+
+    expect(graphql.mock.calls.map((c) => c[1])).toEqual([
+      { owner: 'acme', name: 'widgets', number: 9, commentsAfter: null },
+      { owner: 'acme', name: 'widgets', number: 9, commentsAfter: 'C1' },
+    ]);
+    expect(store.saveItems).toHaveBeenCalledWith(7, [
+      {
+        kind: 'pr_thread',
+        externalId: '9',
+        payload: { comments: ['c1', 'c2', 'c3'], fetchedPages: 2 },
+      },
+    ]);
   });
 });
