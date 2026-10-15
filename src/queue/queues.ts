@@ -27,6 +27,11 @@ export interface IssueThreadJobData {
   issueNumber: number;
 }
 
+export interface PrsBackfillJobData {
+  repoId: number;
+  pageSize?: number;
+}
+
 export interface PrThreadJobData {
   repoId: number;
   prNumber: number;
@@ -35,6 +40,7 @@ export interface PrThreadJobData {
 // Deterministic ids dedupe re-enqueues. BullMQ rejects ':' in custom ids.
 export const issuesBackfillJobId = (repoId: number) =>
   `issues-backfill-${repoId}`;
+export const prsBackfillJobId = (repoId: number) => `prs-backfill-${repoId}`;
 export const threadJobId = (repoId: number, kind: ThreadKind, number: number) =>
   `${kind}-thread-${repoId}-${number}`;
 

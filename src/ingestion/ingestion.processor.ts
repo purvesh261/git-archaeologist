@@ -5,10 +5,12 @@ import {
   JobName,
   type IssuesBackfillJobData,
   type IssueThreadJobData,
+  type PrsBackfillJobData,
   type PrThreadJobData,
   type RepoStatsJobData,
 } from '../queue/queues.js';
 import { IssuesBackfillJob } from './issues/issues-backfill.job.js';
+import { PrsBackfillJob } from './prs/prs-backfill.job.js';
 import { RepoStatsJob } from './repo-stats.job.js';
 import { ThreadJob } from './thread.job.js';
 
@@ -20,6 +22,7 @@ export class IngestionProcessor extends WorkerHost {
     private readonly repoStats: RepoStatsJob,
     private readonly issuesBackfill: IssuesBackfillJob,
     private readonly thread: ThreadJob,
+    private readonly prsBackfill: PrsBackfillJob,
   ) {
     super();
   }
@@ -34,6 +37,8 @@ export class IngestionProcessor extends WorkerHost {
         const { repoId, issueNumber } = job.data as IssueThreadJobData;
         return this.thread.run({ repoId, kind: 'issue', number: issueNumber });
       }
+      case JobName.PrsBackfill:
+        return this.prsBackfill.run(job.data as PrsBackfillJobData, job);
       case JobName.PrThread: {
         const { repoId, prNumber } = job.data as PrThreadJobData;
         return this.thread.run({ repoId, kind: 'pr', number: prNumber });

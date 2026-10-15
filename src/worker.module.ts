@@ -5,6 +5,7 @@ import { BackfillStore } from './ingestion/backfill.store.js';
 import { IngestionProcessor } from './ingestion/ingestion.processor.js';
 import { IssuesBackfillJob } from './ingestion/issues/issues-backfill.job.js';
 import { PagedBackfillRunner } from './ingestion/paged-backfill.runner.js';
+import { PrsBackfillJob } from './ingestion/prs/prs-backfill.job.js';
 import { RepoStatsJob } from './ingestion/repo-stats.job.js';
 import { ThreadJob } from './ingestion/thread.job.js';
 
@@ -18,6 +19,7 @@ import { ThreadJob } from './ingestion/thread.job.js';
     IssuesBackfillJob,
     PagedBackfillRunner,
     ThreadJob,
+    PrsBackfillJob,
   ],
 })
 export class WorkerModule {}
