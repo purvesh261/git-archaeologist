@@ -11,8 +11,16 @@ import type { Repo } from '../repos/repos.service.js';
 
 const execFileAsync = promisify(execFile);
 
-// Auth failures must fail, not hang the worker on a password prompt.
-const GIT_ENV = { ...process.env, GIT_TERMINAL_PROMPT: '0' };
+// Ignore the host's git config (credential helpers, output encoding, signatures) so
+// output is the same on every machine; auth failures fail instead of prompting.
+const GIT_ENV = {
+  ...process.env,
+  GIT_TERMINAL_PROMPT: '0',
+  GIT_CONFIG_GLOBAL: '/dev/null',
+  GIT_CONFIG_NOSYSTEM: '1',
+};
+// Abort a transfer that stalls below 1 KB/s for a minute instead of hanging the worker.
+const NET_ARGS = ['-c', 'http.lowSpeedLimit=1000', '-c', 'http.lowSpeedTime=60'];
 const SAFE_NAME = /^[A-Za-z0-9_.-]+$/;
 
 /** Bare clones per repo, kept on disk so later git tools run locally. Git runs without a shell. */
@@ -38,7 +46,11 @@ export class GitService {
     const path = join(this.dataDir, `${repo.id}.git`);
 
     if (existsSync(path)) {
-      await this.run(path, ['fetch', '--prune', '--no-tags', url, '+refs/heads/*:refs/heads/*']);
+      await this.run(path, [...NET_ARGS, 'fetch', '--prune', '--no-tags', url, '+refs/heads/*:refs/heads/*']);
+      // Follow a default-branch rename, or HEAD points at a pruned branch.
+      const remoteHead = await this.run(path, [...NET_ARGS, 'ls-remote', '--symref', url, 'HEAD']);
+      const ref = /^ref: (refs\/heads\/\S+)\tHEAD$/m.exec(remoteHead)?.[1];
+      if (ref) await this.run(path, ['symbolic-ref', 'HEAD', ref]);
       return path;
     }
 
@@ -47,7 +59,9 @@ export class GitService {
     await rm(tmp, { recursive: true, force: true });
     await mkdir(this.dataDir, { recursive: true });
     const started = Date.now();
-    await execFileAsync('git', ['clone', '--bare', '--no-tags', url, tmp], { env: GIT_ENV });
+    await execFileAsync('git', [...NET_ARGS, 'clone', '--bare', '--no-tags', url, tmp], {
+      env: GIT_ENV,
+    });
     await rename(tmp, path);
     this.logger.log(`cloned repo ${repo.id} in ${Math.round((Date.now() - started) / 1000)}s`);
     return path;
@@ -70,6 +84,8 @@ export class GitService {
       child.on('error', rej);
       child.on('close', res);
     });
+    // Awaited only after stdout ends; without this a spawn error is an unhandled rejection.
+    exit.catch(() => {});
     return Readable.from(
       (async function* () {
         yield* child.stdout;

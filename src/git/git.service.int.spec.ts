@@ -101,4 +101,35 @@ describe('GitService', () => {
       /no-such-ref/,
     );
   });
+
+  it('follows a default branch rename upstream', async () => {
+    const path = await t.svc.ensureClone(repo, t.url);
+    git(t.source, 'branch', '-m', 'main', 'trunk');
+    git(t.source, 'commit', '-q', '--allow-empty', '-m', 'on trunk');
+
+    await t.svc.ensureClone(repo, t.url);
+
+    expect(t.head(path)).toBe(git(t.source, 'rev-parse', 'HEAD'));
+  });
+
+  it("ignores the host's global git config", async () => {
+    git(t.source, 'commit', '-q', '--allow-empty', '-m', 'café');
+    const path = await t.svc.ensureClone(repo, t.url);
+    const hostile = join(t.root, 'hostile.gitconfig');
+    writeFileSync(hostile, '[i18n]\n\tlogOutputEncoding = ISO-8859-1\n');
+    const saved = process.env.GIT_CONFIG_GLOBAL;
+    process.env.GIT_CONFIG_GLOBAL = hostile;
+    try {
+      // a fresh import, so the service sees the env as a worker started with it would
+      vi.resetModules();
+      const { GitService: Fresh } = await import('./git.service.js');
+      const svc = new Fresh({ get: () => t.dataDir } as unknown as ConfigService<Env, true>);
+      await expect(text(svc.spawnLog(path, ['log', '-1', '--format=%s']))).resolves.toBe(
+        'café\n',
+      );
+    } finally {
+      if (saved === undefined) delete process.env.GIT_CONFIG_GLOBAL;
+      else process.env.GIT_CONFIG_GLOBAL = saved;
+    }
+  });
 });
