@@ -32,6 +32,11 @@ export interface PrsBackfillJobData {
   pageSize?: number;
 }
 
+export interface CommitsBackfillJobData {
+  repoId: number;
+  batchSize?: number;
+}
+
 export interface PrThreadJobData {
   repoId: number;
   prNumber: number;
@@ -41,6 +46,7 @@ export interface PrThreadJobData {
 export const issuesBackfillJobId = (repoId: number) =>
   `issues-backfill-${repoId}`;
 export const prsBackfillJobId = (repoId: number) => `prs-backfill-${repoId}`;
+export const commitsBackfillJobId = (repoId: number) => `commits-backfill-${repoId}`;
 export const threadJobId = (repoId: number, kind: ThreadKind, number: number) =>
   `${kind}-thread-${repoId}-${number}`;
 

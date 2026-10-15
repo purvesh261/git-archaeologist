@@ -3,6 +3,7 @@ import { CoreModule } from './core.module.js';
 import { GitModule } from './git/git.module.js';
 import { GithubModule } from './github/github.module.js';
 import { BackfillStore } from './ingestion/backfill.store.js';
+import { CommitsBackfillJob } from './ingestion/commits/commits-backfill.job.js';
 import { IngestionProcessor } from './ingestion/ingestion.processor.js';
 import { IssuesBackfillJob } from './ingestion/issues/issues-backfill.job.js';
 import { PagedBackfillRunner } from './ingestion/paged-backfill.runner.js';
@@ -21,6 +22,7 @@ import { ThreadJob } from './ingestion/thread.job.js';
     PagedBackfillRunner,
     ThreadJob,
     PrsBackfillJob,
+    CommitsBackfillJob,
   ],
 })
 export class WorkerModule {}

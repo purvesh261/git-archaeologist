@@ -1,5 +1,6 @@
 import type { Job } from 'bullmq';
 import { IngestionProcessor } from './ingestion.processor.js';
+import type { CommitsBackfillJob } from './commits/commits-backfill.job.js';
 import type { IssuesBackfillJob } from './issues/issues-backfill.job.js';
 import type { PrsBackfillJob } from './prs/prs-backfill.job.js';
 import type { RepoStatsJob } from './repo-stats.job.js';
@@ -10,11 +11,13 @@ describe('IngestionProcessor', () => {
   const issuesBackfill = { run: vi.fn(async () => 'backfill') };
   const threadJob = { run: vi.fn(async () => 'thread') };
   const prsBackfill = { run: vi.fn(async () => 'prs') };
+  const commitsBackfill = { run: vi.fn(async () => 'commits') };
   const processor = new IngestionProcessor(
     repoStats as unknown as RepoStatsJob,
     issuesBackfill as unknown as IssuesBackfillJob,
     threadJob as unknown as ThreadJob,
     prsBackfill as unknown as PrsBackfillJob,
+    commitsBackfill as unknown as CommitsBackfillJob,
   );
   const job = (name: string, data: unknown) => ({ name, data }) as Job;
 
@@ -48,5 +51,11 @@ describe('IngestionProcessor', () => {
       'thread',
     );
     expect(threadJob.run).toHaveBeenCalledWith({ repoId: 1, kind: 'pr', number: 5 });
+  });
+
+  it('routes commits-backfill', async () => {
+    const commits = job('commits-backfill', { repoId: 1 });
+    await expect(processor.process(commits)).resolves.toBe('commits');
+    expect(commitsBackfill.run).toHaveBeenCalledWith({ repoId: 1 }, commits);
   });
 });

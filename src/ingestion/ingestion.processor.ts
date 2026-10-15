@@ -3,12 +3,14 @@ import type { Job } from 'bullmq';
 import {
   INGESTION_QUEUE,
   JobName,
+  type CommitsBackfillJobData,
   type IssuesBackfillJobData,
   type IssueThreadJobData,
   type PrsBackfillJobData,
   type PrThreadJobData,
   type RepoStatsJobData,
 } from '../queue/queues.js';
+import { CommitsBackfillJob } from './commits/commits-backfill.job.js';
 import { IssuesBackfillJob } from './issues/issues-backfill.job.js';
 import { PrsBackfillJob } from './prs/prs-backfill.job.js';
 import { RepoStatsJob } from './repo-stats.job.js';
@@ -23,6 +25,7 @@ export class IngestionProcessor extends WorkerHost {
     private readonly issuesBackfill: IssuesBackfillJob,
     private readonly thread: ThreadJob,
     private readonly prsBackfill: PrsBackfillJob,
+    private readonly commitsBackfill: CommitsBackfillJob,
   ) {
     super();
   }
@@ -43,6 +46,8 @@ export class IngestionProcessor extends WorkerHost {
         const { repoId, prNumber } = job.data as PrThreadJobData;
         return this.thread.run({ repoId, kind: 'pr', number: prNumber });
       }
+      case JobName.CommitsBackfill:
+        return this.commitsBackfill.run(job.data as CommitsBackfillJobData, job);
       default:
         throw new Error(`Unknown job: ${job.name}`);
     }
