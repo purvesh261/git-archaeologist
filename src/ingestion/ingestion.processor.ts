@@ -3,15 +3,23 @@ import type { Job } from 'bullmq';
 import {
   INGESTION_QUEUE,
   JobName,
+  type IssuesBackfillJobData,
+  type IssueThreadJobData,
   type RepoStatsJobData,
 } from '../queue/queues.js';
+import { IssueThreadJob } from './issues/issue-thread.job.js';
+import { IssuesBackfillJob } from './issues/issues-backfill.job.js';
 import { RepoStatsJob } from './repo-stats.job.js';
 
 // Concurrency 1: every job shares one GitHub token's rate limit, so running
 // jobs in parallel would only make them wait on each other.
 @Processor(INGESTION_QUEUE, { concurrency: 1 })
 export class IngestionProcessor extends WorkerHost {
-  constructor(private readonly repoStats: RepoStatsJob) {
+  constructor(
+    private readonly repoStats: RepoStatsJob,
+    private readonly issuesBackfill: IssuesBackfillJob,
+    private readonly issueThread: IssueThreadJob,
+  ) {
     super();
   }
 
@@ -19,6 +27,10 @@ export class IngestionProcessor extends WorkerHost {
     switch (job.name) {
       case JobName.RepoStats:
         return this.repoStats.run(job.data as RepoStatsJobData);
+      case JobName.IssuesBackfill:
+        return this.issuesBackfill.run(job.data as IssuesBackfillJobData, job);
+      case JobName.IssueThread:
+        return this.issueThread.run(job.data as IssueThreadJobData);
       default:
         throw new Error(`Unknown job: ${job.name}`);
     }
