@@ -3,22 +3,11 @@
 const TIMELINE_TYPES =
   '[CROSS_REFERENCED_EVENT, CLOSED_EVENT, MARKED_AS_DUPLICATE_EVENT, CONNECTED_EVENT, REFERENCED_EVENT]';
 
-const FRAGMENTS = /* GraphQL */ `
+// Shared with PR queries. GraphQL rejects unused fragments, so they're split from the timeline ones.
+export const COMMENT_FRAGMENTS = /* GraphQL */ `
   fragment Actor on Actor {
     __typename
     login
-  }
-
-  fragment Ref on ReferencedSubject {
-    __typename
-    ... on Issue {
-      number
-      url
-    }
-    ... on PullRequest {
-      number
-      url
-    }
   }
 
   fragment Comment on IssueComment {
@@ -30,6 +19,22 @@ const FRAGMENTS = /* GraphQL */ `
     body
     createdAt
     url
+  }
+`;
+
+const FRAGMENTS = /* GraphQL */ `
+  ${COMMENT_FRAGMENTS}
+
+  fragment Ref on ReferencedSubject {
+    __typename
+    ... on Issue {
+      number
+      url
+    }
+    ... on PullRequest {
+      number
+      url
+    }
   }
 
   fragment TimelineItem on IssueTimelineItems {

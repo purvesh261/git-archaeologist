@@ -1,21 +1,28 @@
 import { Module } from '@nestjs/common';
 import { CoreModule } from './core.module.js';
+import { GitModule } from './git/git.module.js';
 import { GithubModule } from './github/github.module.js';
 import { BackfillStore } from './ingestion/backfill.store.js';
+import { CommitsBackfillJob } from './ingestion/commits/commits-backfill.job.js';
 import { IngestionProcessor } from './ingestion/ingestion.processor.js';
-import { IssueThreadJob } from './ingestion/issues/issue-thread.job.js';
 import { IssuesBackfillJob } from './ingestion/issues/issues-backfill.job.js';
+import { PagedBackfillRunner } from './ingestion/paged-backfill.runner.js';
+import { PrsBackfillJob } from './ingestion/prs/prs-backfill.job.js';
 import { RepoStatsJob } from './ingestion/repo-stats.job.js';
+import { ThreadJob } from './ingestion/thread.job.js';
 
-/** The worker process: the only module allowed to import GithubModule. */
+/** The worker process: the only module allowed to import GithubModule and GitModule. */
 @Module({
-  imports: [CoreModule, GithubModule],
+  imports: [CoreModule, GithubModule, GitModule],
   providers: [
     IngestionProcessor,
     RepoStatsJob,
     BackfillStore,
     IssuesBackfillJob,
-    IssueThreadJob,
+    PagedBackfillRunner,
+    ThreadJob,
+    PrsBackfillJob,
+    CommitsBackfillJob,
   ],
 })
 export class WorkerModule {}

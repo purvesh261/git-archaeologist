@@ -1,8 +1,10 @@
 docs/
 node_modules
+.claude
 
 # env
 .env
 /dist
 /coverage
 *.tsbuildinfo
+.data/

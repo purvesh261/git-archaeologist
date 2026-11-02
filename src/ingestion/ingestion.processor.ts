@@ -3,13 +3,18 @@ import type { Job } from 'bullmq';
 import {
   INGESTION_QUEUE,
   JobName,
+  type CommitsBackfillJobData,
   type IssuesBackfillJobData,
   type IssueThreadJobData,
+  type PrsBackfillJobData,
+  type PrThreadJobData,
   type RepoStatsJobData,
 } from '../queue/queues.js';
-import { IssueThreadJob } from './issues/issue-thread.job.js';
+import { CommitsBackfillJob } from './commits/commits-backfill.job.js';
 import { IssuesBackfillJob } from './issues/issues-backfill.job.js';
+import { PrsBackfillJob } from './prs/prs-backfill.job.js';
 import { RepoStatsJob } from './repo-stats.job.js';
+import { ThreadJob } from './thread.job.js';
 
 // Concurrency 1: every job shares one GitHub token's rate limit, so running
 // jobs in parallel would only make them wait on each other.
@@ -18,7 +23,9 @@ export class IngestionProcessor extends WorkerHost {
   constructor(
     private readonly repoStats: RepoStatsJob,
     private readonly issuesBackfill: IssuesBackfillJob,
-    private readonly issueThread: IssueThreadJob,
+    private readonly thread: ThreadJob,
+    private readonly prsBackfill: PrsBackfillJob,
+    private readonly commitsBackfill: CommitsBackfillJob,
   ) {
     super();
   }
@@ -29,8 +36,18 @@ export class IngestionProcessor extends WorkerHost {
         return this.repoStats.run(job.data as RepoStatsJobData);
       case JobName.IssuesBackfill:
         return this.issuesBackfill.run(job.data as IssuesBackfillJobData, job);
-      case JobName.IssueThread:
-        return this.issueThread.run(job.data as IssueThreadJobData);
+      case JobName.IssueThread: {
+        const { repoId, issueNumber } = job.data as IssueThreadJobData;
+        return this.thread.run({ repoId, kind: 'issue', number: issueNumber });
+      }
+      case JobName.PrsBackfill:
+        return this.prsBackfill.run(job.data as PrsBackfillJobData, job);
+      case JobName.PrThread: {
+        const { repoId, prNumber } = job.data as PrThreadJobData;
+        return this.thread.run({ repoId, kind: 'pr', number: prNumber });
+      }
+      case JobName.CommitsBackfill:
+        return this.commitsBackfill.run(job.data as CommitsBackfillJobData, job);
       default:
         throw new Error(`Unknown job: ${job.name}`);
     }

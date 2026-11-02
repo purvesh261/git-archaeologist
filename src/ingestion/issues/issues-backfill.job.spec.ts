@@ -9,6 +9,7 @@ import type {
   CursorState,
   RawItem,
 } from '../backfill.store.js';
+import { PagedBackfillRunner } from '../paged-backfill.runner.js';
 import { IssuesBackfillJob } from './issues-backfill.job.js';
 import type { IssueNode, IssuesPageResponse } from './issues.queries.js';
 
@@ -83,10 +84,12 @@ function setup(opts: { initial?: CursorState | null } = {}) {
   const repos = { get: vi.fn(async () => ({ id: REPO_ID, owner: 'acme', name: 'widgets' })) };
 
   const job = new IssuesBackfillJob(
-    { graphql } as unknown as GithubClient,
-    repos as unknown as ReposService,
-    store as unknown as BackfillStore,
-    queue as unknown as Queue,
+    new PagedBackfillRunner(
+      { graphql } as unknown as GithubClient,
+      repos as unknown as ReposService,
+      store as unknown as BackfillStore,
+      queue as unknown as Queue,
+    ),
   );
   return { job, graphql, store, queue, events, saved, state: () => state };
 }

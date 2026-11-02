@@ -1,8 +1,9 @@
-import type { GithubClient } from '../../github/github.client.js';
-import type { ReposService } from '../../repos/repos.service.js';
-import type { BackfillStore } from '../backfill.store.js';
-import { IssueThreadJob } from './issue-thread.job.js';
-import type { IssueThreadResponse } from './issues.queries.js';
+import type { GithubClient } from '../github/github.client.js';
+import type { ReposService } from '../repos/repos.service.js';
+import type { BackfillStore } from './backfill.store.js';
+import type { IssueThreadResponse } from './issues/issues.queries.js';
+import type { PrThreadResponse } from './prs/prs.queries.js';
+import { ThreadJob } from './thread.job.js';
 
 const conn = (nodes: string[], endCursor: string, hasNextPage: boolean) => ({
   pageInfo: { hasNextPage, endCursor },
@@ -42,7 +43,7 @@ function setup() {
   const repos = {
     get: vi.fn(async () => ({ id: 7, owner: 'acme', name: 'widgets' })),
   };
-  const job = new IssueThreadJob(
+  const job = new ThreadJob(
     { graphql } as unknown as GithubClient,
     repos as unknown as ReposService,
     store as unknown as BackfillStore,
@@ -50,11 +51,11 @@ function setup() {
   return { job, graphql, store };
 }
 
-describe('IssueThreadJob', () => {
+describe('ThreadJob', () => {
   it('paginates comments and timeline independently until both are exhausted', async () => {
     const t = setup();
 
-    await expect(t.job.run({ repoId: 7, issueNumber: 42 })).resolves.toEqual({
+    await expect(t.job.run({ repoId: 7, kind: 'issue', number: 42 })).resolves.toEqual({
       comments: 5,
       timelineItems: 2,
     });
@@ -74,7 +75,7 @@ describe('IssueThreadJob', () => {
   it('stores the concatenated nodes as one issue_thread row', async () => {
     const t = setup();
 
-    await t.job.run({ repoId: 7, issueNumber: 42 });
+    await t.job.run({ repoId: 7, kind: 'issue', number: 42 });
 
     expect(t.store.saveItems).toHaveBeenCalledTimes(1);
     expect(t.store.saveItems).toHaveBeenCalledWith(7, [
@@ -95,8 +96,8 @@ describe('IssueThreadJob', () => {
     // the store's upsert (backfill.store.int.spec) keeps that to one row.
     const t = setup();
 
-    await t.job.run({ repoId: 7, issueNumber: 42 });
-    await t.job.run({ repoId: 7, issueNumber: 42 });
+    await t.job.run({ repoId: 7, kind: 'issue', number: 42 });
+    await t.job.run({ repoId: 7, kind: 'issue', number: 42 });
 
     const [first, second] = t.store.saveItems.mock.calls as unknown[][];
     expect(second).toEqual(first);
@@ -107,9 +108,46 @@ describe('IssueThreadJob', () => {
     const t = setup();
     t.graphql.mockResolvedValueOnce({ repository: { issue: null } });
 
-    await expect(t.job.run({ repoId: 7, issueNumber: 42 })).rejects.toThrow(
+    await expect(t.job.run({ repoId: 7, kind: 'issue', number: 42 })).rejects.toThrow(
       /#42/,
     );
     expect(t.store.saveItems).not.toHaveBeenCalled();
+  });
+});
+
+describe('ThreadJob for PRs', () => {
+  it("pages a PR thread's comments and saves kind 'pr_thread'", async () => {
+    const pages = [conn(['c1', 'c2'], 'C1', true), conn(['c3'], 'C2', false)];
+    const graphql = vi.fn(
+      async (
+        _q: string,
+        v: { commentsAfter: string | null },
+      ): Promise<PrThreadResponse> => ({
+        repository: { pullRequest: { comments: pages[v.commentsAfter ? 1 : 0] } },
+      }),
+    );
+    const store = { saveItems: vi.fn(async () => {}) };
+    const job = new ThreadJob(
+      { graphql } as unknown as GithubClient,
+      { get: async () => ({ id: 7, owner: 'acme', name: 'widgets' }) } as unknown as ReposService,
+      store as unknown as BackfillStore,
+    );
+
+    await expect(job.run({ repoId: 7, kind: 'pr', number: 9 })).resolves.toEqual({
+      comments: 3,
+      timelineItems: 0,
+    });
+
+    expect(graphql.mock.calls.map((c) => c[1])).toEqual([
+      { owner: 'acme', name: 'widgets', number: 9, commentsAfter: null },
+      { owner: 'acme', name: 'widgets', number: 9, commentsAfter: 'C1' },
+    ]);
+    expect(store.saveItems).toHaveBeenCalledWith(7, [
+      {
+        kind: 'pr_thread',
+        externalId: '9',
+        payload: { comments: ['c1', 'c2', 'c3'], fetchedPages: 2 },
+      },
+    ]);
   });
 });
